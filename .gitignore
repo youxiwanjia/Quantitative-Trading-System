@@ -1,0 +1,38 @@
+# Python 编译文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 日志文件
+logs/
+*.log
+
+# 数据文件（通常很大且为本地生成，不建议提交）
+data/raw/
+data/processed/
+data/temp/
+
+# 第三方库（如果 libraries/ 是通过 pip 安装的，建议忽略）
+libraries/
+# 如果 libraries/ 中有项目特有的必须提交的库，可以去掉上面的注释，并单独忽略里面的临时文件
+
+# 系统临时文件
+*.lnk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE 配置
+.vscode/
+.idea/
+*.sublime-*
+
+# 虚拟环境
+venv/
+env/
+.env
+
+# 其他临时目录
+_checkpoints/
+*.tmp

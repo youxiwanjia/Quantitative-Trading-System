@@ -1,0 +1,28 @@
+# 回测配置文件
+backtest:
+  start_date: "2025-01-01"
+  end_date: "2026-03-18"
+  initial_cash: 1000000
+  frequency: "D"           # 每日调仓
+  rebalance_time: "close"  # 以收盘价成交
+
+factor_config: "configs/factors.yaml"
+
+trading:
+  commission: 0.0004       # 佣金万分之4
+  stamp_tax: 0.001         # 印花税千分之一（仅卖出收取）
+  slippage: 0.002          # 滑点0.2%
+  min_commission: 5         # 最低佣金5元
+
+benchmark:
+  code: "000300.SH"        # 沪深300代码（需下载数据）
+
+# 多策略配置（每个策略一个文件，或在此处列出多个）
+strategies:
+  - name: "strategy_base"
+    config: "configs/strategy.yaml"  # 复用之前的选股策略配置
+    weight: 1.0                       # 组合权重（多策略组合时可设）
+  # 可以添加更多策略进行对比
+  # - name: "strategy_ma"
+  #   config: "configs/strategy_ma.yaml"
+  #   weight: 1.0

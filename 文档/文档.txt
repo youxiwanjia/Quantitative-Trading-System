@@ -1,0 +1,573 @@
+因子处理器 (Factor Processor) 与策略基类 (Strategy Base Class)
+===================================================================
+
+创建时间: 2026-03-18
+
+本文档包含四个核心模块的说明：
+1. 因子处理器 (src/factors/processor.py)
+2. 策略基类 (src/strategies/base.py)
+3. 多因子策略 (src/strategies/multi_factor.py)
+4. 策略配置加载器 (src/strategies/loader.py)
+
+================================================================================
+一、因子处理器 (Factor Processor)
+================================================================================
+
+文件位置: src/factors/processor.py
+
+功能概述
+--------
+该模块提供了因子数据处理的核心功能，包括去极值、标准化和行业中性化处理。
+
+主要类: FactorProcessor
+-----------------------
+
+1. winsorize(series, limits=(0.01, 0.99))
+   - 功能: 去极值处理
+   - 参数:
+     * series: pandas Series，待处理的因子数据
+     * limits: tuple，分位数边界，默认为 (0.01, 0.99)
+   - 返回: 处理后的 Series
+   - 说明: 将超出指定分位数的值替换为边界值
+
+2. standardize(series, method='rank')
+   - 功能: 标准化处理
+   - 参数:
+     * series: pandas Series，待处理的因子数据
+     * method: str，标准化方法
+       - 'rank': 百分位排名 [0,1]
+       - 'zscore': Z-score 标准化
+       - 'none': 不处理
+   - 返回: 处理后的 Series
+   - 说明: 将因子值转换到标准分布
+
+3. neutralize(series, group_series)
+   - 功能: 行业中性化处理
+   - 参数:
+     * series: pandas Series，待处理的因子数据
+     * group_series: pandas Series，行业分类标签
+   - 返回: 处理后的 Series
+   - 说明: 对每个行业组内的因子值减去组内均值，消除行业影响
+
+使用示例
+--------
+```python
+from src.factors.processor import FactorProcessor
+import pandas as pd
+
+# 示例数据
+data = pd.Series([1, 2, 3, 4, 5, 100, -50])
+
+# 去极值
+winsorized = FactorProcessor.winsorize(data, limits=(0.01, 0.99))
+
+# 标准化
+ranked = FactorProcessor.standardize(winsorized, method='rank')
+
+# 行业中性化
+industry_neutral = FactorProcessor.neutralize(ranked, industry_labels)
+```
+
+依赖库
+------
+- pandas: 用于数据处理
+
+作者: Claw-山炮 (山炮·Claw)
+
+================================================================================
+二、策略基类 (Strategy Base Class)
+================================================================================
+
+文件位置: src/strategies/base.py
+
+功能概述
+--------
+该模块提供了选股策略的抽象基类，定义了所有选股策略必须实现的标准接口。
+
+主要类: SelectionStrategy
+-------------------------
+
+基类定义:
+```python
+class SelectionStrategy(ABC):
+    def __init__(self, params: dict)
+    def generate_signals(self, date: str, data_loader, factor_engine)
+```
+
+核心方法
+--------
+
+1. __init__(self, params: dict)
+   - 功能: 初始化策略参数
+   - 参数:
+     * params: dict，策略参数字典
+   - 说明: 子类继承时可以覆盖此方法，添加特定的初始化逻辑
+
+2. generate_signals(self, date: str, data_loader, factor_engine)
+   - 功能: 生成选股信号
+   - 参数:
+     * date: str，调仓日期 (YYYY-MM-DD)
+     * data_loader: 数据加载器对象，用于加载数据
+     * factor_engine: 因子引擎对象，用于实时计算或读取因子
+   - 返回: 目标股票列表（或带权重的字典）
+   - 说明: 子类必须实现此方法，具体实现选股逻辑
+
+使用示例
+--------
+```python
+from src.strategies.base import SelectionStrategy
+import pandas as pd
+
+class TopNStrategy(SelectionStrategy):
+    """Top N 选股策略"""
+
+    def __init__(self, params: dict):
+        super().__init__(params)
+        self.n = params.get('n', 10)
+
+    def generate_signals(self, date: str, data_loader, factor_engine):
+        """
+        生成选股信号
+        :param date: 调仓日期 (YYYY-MM-DD)
+        :param data_loader: 数据加载器
+        :param factor_engine: 因子引擎
+        :return: 目标股票列表
+        """
+        # 1. 加载因子数据
+        factor_data = factor_engine.get_factor_data(date)
+
+        # 2. 选择前N只股票
+        top_stocks = factor_data.nlargest(self.n, 'factor_value')
+
+        # 3. 返回股票列表
+        return top_stocks.index.tolist()
+
+# 使用示例
+strategy_params = {'n': 10}
+strategy = TopNStrategy(strategy_params)
+signals = strategy.generate_signals('2026-03-18', data_loader, factor_engine)
+```
+
+设计理念
+--------
+1. 抽象基类 (ABC): 确保所有策略类都实现标准接口
+2. 参数化设计: 通过 params 字典传递策略参数，便于配置
+3. 灵活扩展: 支持不同的数据加载器和因子引擎
+4. 统一接口: generate_signals 方法返回格式统一，便于后续处理
+
+扩展策略
+--------
+子类可以实现不同的选股策略，例如：
+- TopNStrategy: 选择因子值最高的N只股票
+- BottomNStrategy: 选择因子值最低的N只股票
+- SectorStrategy: 按行业配置权重
+- QuantileStrategy: 按分位数分组选股
+- MultiFactorStrategy: 多因子组合选股
+
+依赖库
+------
+- abc: Python 内置抽象基类模块
+- typing: Python 类型提示（可选）
+
+作者: Claw-山炮 (山炮·Claw)
+
+================================================================================
+三、多因子加权打分策略 (Multi-Factor Strategy)
+================================================================================
+
+文件位置: src/strategies/multi_factor.py
+创建时间: 2026-03-18
+
+功能概述
+--------
+该模块实现了多因子加权打分选股策略，通过多个因子的组合来选择股票。
+
+主要类: MultiFactorStrategy
+---------------------------
+
+基类继承: SelectionStrategy
+
+核心方法: generate_signals(date, data_loader, factor_engine)
+
+参数说明
+--------
+
+初始化参数 (params):
+- factors: list，因子名称列表
+  示例: ['pe_ratio', 'pb_ratio', 'roe', 'turnover']
+- weights: list，对应的权重列表
+  示例: [0.3, 0.2, 0.3, 0.2]
+- top_n: int，选股数量（默认30）
+- filter_st: bool，是否剔除ST股票（默认True）
+- min_price: float，最低股价（默认1元）
+- standardize: str，标准化方法（默认'rank'）
+  可选值: 'rank', 'zscore', 'none'
+
+生成信号参数:
+- date: str，调仓日期 (YYYY-MM-DD)
+- data_loader: 数据加载器对象
+- factor_engine: 因子引擎对象
+
+返回值:
+- list，股票代码列表
+
+使用示例
+--------
+
+```python
+from src.strategies.multi_factor import MultiFactorStrategy
+
+# 策略参数配置
+params = {
+    'factors': ['pe_ratio', 'pb_ratio', 'roe', 'turnover'],  # 因子列表
+    'weights': [0.3, 0.2, 0.3, 0.2],  # 权重列表
+    'top_n': 30,  # 选股数量
+    'filter_st': True,  # 剔除ST
+    'min_price': 1,  # 最低股价1元
+    'standardize': 'rank'  # 使用排名标准化
+}
+
+# 初始化策略
+strategy = MultiFactorStrategy(params)
+
+# 生成选股信号
+signals = strategy.generate_signals(
+    date='2026-03-18',
+    data_loader=data_loader,
+    factor_engine=factor_engine
+)
+
+print(f"选出的股票数量: {len(signals)}")
+print(f"股票代码: {signals}")
+```
+
+策略流程
+--------
+
+1. 获取股票池
+   - 从 data_loader 获取当日所有股票
+   - 可选过滤：剔除ST股票、停牌股票等
+
+2. 获取因子值
+   - 遍历所有因子
+   - 从预计算因子加载或实时计算
+
+3. 缺失值处理
+   - 删除缺失值的股票
+
+4. 标准化
+   - 对每个因子进行截面标准化
+   - 支持排名标准化或Z-score标准化
+
+5. 加权求和
+   - 每个因子值乘以对应权重
+   - 累加得到综合得分
+
+6. 选股
+   - 选择得分最高的N只股票
+
+优化建议
+--------
+
+1. 因子组合优化
+   - 可以通过机器学习自动寻找最优权重
+   - 使用正交化处理因子相关性
+
+2. 过滤条件增强
+   - 剔除停牌股票
+   - 筛选上市时间（如上市满1年）
+   - 设置最低市值要求
+
+3. 交易成本考虑
+   - 加入流动性过滤
+   - 考虑冲击成本
+
+4. 动态调整
+   - 根据市场环境调整权重
+   - 使用滚动窗口优化参数
+
+依赖库
+------
+- pandas: 用于数据处理
+- src.strategies.base: 策略基类
+- src.factors.processor: 因子处理器
+
+作者: Claw-山炮 (山炮·Claw)
+
+================================================================================
+四、策略配置加载器 (Strategy Loader)
+================================================================================
+
+文件位置: src/strategies/loader.py
+创建时间: 2026-03-18
+
+功能概述
+--------
+该模块提供了从YAML配置文件加载策略实例的功能，支持配置化策略管理。
+
+主要类: StrategyLoader
+-----------------------
+
+核心方法: load(config_path: str)
+
+功能说明
+--------
+
+load(config_path: str)
+- 功能: 从YAML配置文件加载策略实例
+- 参数:
+  * config_path: str，配置文件路径
+- 返回: 策略实例 (如 MultiFactorStrategy)
+- 异常: ValueError - 如果策略类型未知
+
+配置文件格式
+------------
+
+配置文件必须是YAML格式，包含以下字段：
+
+```yaml
+type: MultiFactorStrategy  # 策略类型
+params:                    # 策略参数
+  factors:                 # 因子列表
+    - pe_ratio
+    - pb_ratio
+    - roe
+  weights:                 # 权重列表
+    - 0.3
+    - 0.2
+    - 0.3
+  top_n: 30                # 选股数量
+  filter_st: true          # 剔除ST
+  min_price: 1             # 最低股价
+  standardize: rank        # 标准化方法
+```
+
+使用示例
+--------
+
+1. 创建配置文件 (strategies/my_strategy.yaml):
+
+```yaml
+type: MultiFactorStrategy
+params:
+  factors:
+    - pe_ratio
+    - pb_ratio
+    - roe
+    - turnover
+  weights:
+    - 0.3
+    - 0.2
+    - 0.3
+    - 0.2
+  top_n: 30
+  filter_st: true
+  min_price: 1
+  standardize: rank
+```
+
+2. 加载策略:
+
+```python
+from src.strategies.loader import StrategyLoader
+
+# 从配置文件加载策略
+strategy = StrategyLoader.load('strategies/my_strategy.yaml')
+
+# 生成选股信号
+signals = strategy.generate_signals(
+    date='2026-03-18',
+    data_loader=data_loader,
+    factor_engine=factor_engine
+)
+
+print(f"选出的股票数量: {len(signals)}")
+print(f"股票代码: {signals}")
+```
+
+优点
+----
+
+1. 配置化管理
+   - 策略参数外部化，便于调整
+   - 无需修改代码即可改变策略
+
+2. 易于扩展
+   - 支持添加新的策略类型
+   - 只需在 loader.py 中添加新的策略类型判断
+
+3. 版本控制
+   - 配置文件可以纳入版本控制
+   - 便于策略回滚和审计
+
+4. 团队协作
+   - 不同团队成员可以使用不同的配置
+   - 便于策略分享和讨论
+
+依赖库
+------
+- yaml: PyYAML 库，用于解析YAML配置文件
+- src.strategies.multi_factor: 多因子策略实现
+
+作者: Claw-山炮 (山炮·Claw)
+
+================================================================================
+五、日线数据采集器（AKShare实现）
+================================================================================
+
+文件路径: D:\Quantitative Trading System\src\data_fetcher\fetcher_daily.py
+
+主要实现：
+✅ 使用AKShare替代mootdx
+✅ 获取前复权日线数据
+✅ 支持单只股票和批量获取
+✅ 按年分区保存到Parquet格式
+
+类：DailyFetcher
+方法：
+1. __init__()
+   - 初始化日志记录器
+   - 输出"DailyFetcher (AKShare) initialized"
+
+2. fetch_daily_by_code(code, start_date=None, end_date=None)
+   - 获取单只股票的日线数据（前复权）
+   - 参数：
+     * code: 股票代码（如 '000001'）
+     * start_date: 开始日期，格式 'YYYY-MM-DD'（默认2000-01-01）
+     * end_date: 结束日期，格式 'YYYY-MM-DD'（默认今天）
+   - 返回：
+     * DataFrame: 日线数据，索引为日期
+     * 列：date, open, close, high, low, volume, amount, amplitude, pct_chg, change, turnover, code
+   - 特点：
+     * 调用ak.stock_zh_a_hist()接口
+     * 使用前复权（adjust="qfq"）
+     * 自动转换日期格式为YYYYMMDD
+     * 重命名列以匹配原有框架
+     * 设置日期为索引
+
+3. fetch_all_mainboard(stock_list, start_date=None, end_date=None)
+   - 获取所有主板股票的日线数据
+   - 参数：
+     * stock_list: 股票代码列表
+     * start_date: 开始日期
+     * end_date: 结束日期
+   - 返回：
+     * DataFrame: 合并后的日线数据
+   - 特点：
+     * 自动过滤非主板股票（调用is_mainboard()）
+     * 逐只股票调用fetch_daily_by_code()
+     * 合并所有数据
+
+4. save_daily_data(df, year=None)
+   - 保存日线数据到Parquet，按年分区
+   - 参数：
+     * df: 日线DataFrame（索引为日期，含code列）
+     * year: 年份，如2026；若指定则只保存该年份
+   - 特点：
+     * 添加year列用于分区
+     * 按年份分别保存
+     * 按股票代码分组保存
+     * 移除year列再保存
+     * 使用save_parquet()函数
+
+技术特点：
+- 使用akshare库获取A股日线数据
+- 前复权数据，适合量化分析
+- 完善的错误处理和日志记录
+- 按年分区存储，便于查询
+- 自动日期格式转换
+- 标准化列名
+
+================================================================================
+六、分钟线数据采集器（AKShare实现）
+================================================================================
+
+文件路径: D:\Quantitative Trading System\src\data_fetcher\fetcher_minute.py
+
+主要实现：
+✅ 使用AKShare获取分钟线数据
+✅ 支持前复权
+✅ 支持多种分钟频率（1/5/15/30/60）
+✅ 按年月分区保存
+
+类：MinuteFetcher
+方法：
+1. __init__()
+   - 初始化日志记录器
+   - 输出"MinuteFetcher (AKShare) initialized"
+
+2. fetch_minute_by_code(code, date, freq=30)
+   - 获取单只股票指定日期的分钟线数据（前复权）
+   - 参数：
+     * code: 股票代码
+     * date: 日期，格式 'YYYY-MM-DD'
+     * freq: 分钟频率，1/5/15/30/60（默认30）
+   - 返回：
+     * DataFrame: 分钟线数据
+     * 列：datetime, open, high, low, close, volume, amount, code, date
+   - 特点：
+     * 调用ak.stock_zh_a_hist_min_em()接口
+     * 时间范围：09:30:00 - 15:00:00
+     * 自动重命名中文字段
+     * 只保留核心字段
+
+3. fetch_month_range(code, year, month, freq=30)
+   - 获取某股票某月所有交易日的分钟线数据
+   - 参数：
+     * code: 股票代码
+     * year: 年份
+     * month: 月份
+     * freq: 分钟频率
+   - 返回：
+     * DataFrame: 合并的分钟线数据
+   - 特点：
+     * 遍历该月所有日期
+     * 跳过周末（简单过滤）
+     * 逐日调用fetch_minute_by_code()
+     * 合并所有数据
+
+4. save_minute_data(df, year, month)
+   - 保存分钟线数据到Parquet，按年月分区
+   - 参数：
+     * df: 分钟线DataFrame
+     * year: 年份
+     * month: 月份
+   - 特点：
+     * 按年月分区存储
+     * 路径：market/minute_30/year={year}/month={month:02d}
+     * 按股票代码分组保存
+     * 移除date列（如果存在）
+
+技术特点：
+- 使用akshare库获取A股分钟线数据
+- 支持前复权，适合量化分析
+- 灵活的分钟频率选择
+- 自动处理交易日历（简单方法：跳过周末）
+- 按年月分区存储
+- 自动重命名中文字段列名
+- 完善的错误处理和日志记录
+
+---
+总结：
+两个采集器都使用AKShare替代mootdx，解决了mootdx API的问题。
+日线采集器支持单只股票和批量获取，按年分区。
+分钟线采集器支持多种频率，按年月分区。
+两者都使用前复权数据，适合量化分析。
+
+---
+注意事项
+1. 主板过滤：代码中的 is_mainboard 函数依赖 settings.MAINBOARD_PREFIXES，请确保配置正确（已在之前的 settings.py 中定义）。
+
+2. 日期格式：
+   - AKShare 的日线接口接受 YYYYMMDD 格式
+   - 分钟接口接受 YYYY-MM-DD HH:MM:SS 格式
+
+3. 前复权：我们统一使用 adjust="qfq"，符合你之前的选择。
+
+4. 字段映射：AKShare 返回的字段较多，我们保留了核心字段，同时保留了振幅、涨跌幅等作为扩展字段，方便后续使用。
+
+5. 分钟线频率：freq 参数支持 1,5,15,30,60，默认30。如果需要其他频率，可在调用时指定。
+
+6. 交易日历：fetch_month_range 目前简单跳过周末，正式使用时建议接入交易日历（如 ak.tool_trade_date_hist_sina()）以提高准确性。
+
+作者: Claw-山炮 (山炮·Claw)

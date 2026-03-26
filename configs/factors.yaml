@@ -1,0 +1,120 @@
+# configs/factors.yaml
+# 因子定义文件
+
+factors:
+  # 技术因子 - 趋势类
+  ma5:
+    type: technical
+    function: moving_average
+    params: { window: 5, field: close }
+    inputs: [daily]
+    description: 5日均线
+
+  ma10:
+    type: technical
+    function: moving_average
+    params: { window: 10, field: close }
+    inputs: [daily]
+    description: 10日均线
+
+  ma20:
+    type: technical
+    function: moving_average
+    params: { window: 20, field: close }
+    inputs: [daily]
+    description: 20日均线
+
+  ma5_ma20_ratio:
+    type: technical
+    function: ratio
+    params: { numerator: ma5, denominator: ma20 }
+    inputs: [derived]
+    description: 5日与20日均线比值
+
+    macd_dif:
+    type: momentum
+    function: macd_dif
+    params: { fast: 12, slow: 26, signal: 9 }
+    inputs: [daily]
+    description: MACD DIF线
+
+  macd_dea:
+    type: momentum
+    function: macd_dea
+    params: { fast: 12, slow: 26, signal: 9 }
+    inputs: [daily]
+    description: MACD DEA线
+
+  macd_bar:
+    type: momentum
+    function: macd_bar
+    params: { fast: 12, slow: 26, signal: 9 }
+    inputs: [daily]
+    description: MACD柱状图
+
+  kdj_k:
+    type: momentum
+    function: kdj_k
+    params: { n: 9, m1: 3, m2: 3 }
+    inputs: [daily]
+    description: KDJ指标K值
+
+  kdj_d:
+    type: momentum
+    function: kdj_d
+    params: { n: 9, m1: 3, m2: 3 }
+    inputs: [daily]
+    description: KDJ指标D值
+
+  kdj_j:
+    type: momentum
+    function: kdj_j
+    params: { n: 9, m1: 3, m2: 3 }
+    inputs: [daily]
+    description: KDJ指标J值
+
+  bollinger_width_20:
+    type: volatility
+    function: bollinger_width
+    params: { window: 20, num_std: 2 }
+    inputs: [daily]
+    description: 20日布林带宽度
+
+  cci_14:
+    type: momentum
+    function: cci
+    params: { window: 14 }
+    inputs: [daily]
+    description: 14日CCI
+
+  # 技术因子 - 动量类
+  rsi_14:
+    type: momentum
+    function: rsi
+    params: { window: 14 }
+    inputs: [daily]
+    description: 14日RSI
+
+  # 技术因子 - 量能类
+  volume_ratio_5:
+    type: volume
+    function: volume_ratio
+    params: { window: 5 }
+    inputs: [daily]
+    description: 成交量与5日均量比值
+
+  # 技术因子 - 波动类
+  atr_14:
+    type: volatility
+    function: atr
+    params: { window: 14 }
+    inputs: [daily]
+    description: 14日平均真实波幅
+
+  # 预留资金流向因子（需实现moneyflow数据采集后启用）
+  # main_net_inflow_ratio:
+  #   type: money_flow
+  #   function: net_inflow_ratio
+  #   params: { field: main_net_inflow, denominator: amount }
+  #   inputs: [money_flow, daily]
+  #   description: 主力净流入占比

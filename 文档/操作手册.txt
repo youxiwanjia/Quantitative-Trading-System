@@ -1,0 +1,30 @@
+python src/cli/claw_interface.py run-backtest --config configs/backtest.yaml  运行回测
+cd /d "D:\Quantitative Trading System" 转到根目录
+python src/cli/claw_interface.py fetch_index --indices 000300.SH,000001.SH,399001.SZ --start 2025-01-01 --end 2026-03-19  运行指数下载命令
+python src/cli/claw_interface.py fetch_daily --start 2005-01-01 --end 2026-03-21全市场日线数据
+python src/cli/claw_interface.py fetch-minute-base --freq 5 --start 2020-01-01 --end 2026-03-21
+全市场5min数据
+
+python src/cli/claw_interface.py update_stock_list 更新主板股票列表
+从 AKShare 获取实时行情，生成股票列表。
+输出文件：data/processed/metadata/stock_list.csv
+
+python src/cli/claw_interface.py fetch_daily [--codes CODES] [--start START] [--end END] [--force]下载日线数据
+--codes：股票代码，逗号分隔，默认使用全部主板股票
+--start：开始日期，默认 2005-01-01
+--end：结束日期，默认今天
+--force：强制重新下载（不检查本地已有）
+
+python src/cli/claw_interface.py fetch-minute-base --freq {1min,30min} --start START --end END [--codes CODES]   下载分钟线基础数据（1分钟或30分钟）
+--freq：频率，1min 或 30min
+--start：开始日期（必填）
+--end：结束日期（必填）
+--codes：股票代码，逗号分隔，默认全部主板  
+
+python src/cli/claw_interface.py fetch_index [--indices INDICES] [--start START] [--end END]下载指数数据
+--indices：指数代码，逗号分隔，默认 000300.SH,000001.SH,399001.SZ
+--start：开始日期，默认 2005-01-01
+--end：结束日期，默认今天
+
+python src/cli/claw_interface.py select-stocks [--date DATE] [--strategy-config CONFIG] [--factor-config CONFIG] [--output OUTPUT]
+

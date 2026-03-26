@@ -1,0 +1,11 @@
+# configs/strategy.yaml
+# 策略配置文件
+
+type: "MultiFactorStrategy"
+params:
+  factors: ["ma5_ma20_ratio", "rsi_14", "volume_ratio_5"]
+  weights: [0.4, 0.3, 0.3]
+  top_n: 30
+  filter_st: true
+  min_price: 2
+  standardize: "rank"

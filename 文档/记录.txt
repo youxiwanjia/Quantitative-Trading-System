@@ -1,0 +1,34 @@
+已完成配置文件编写！
+
+文件路径： D:\Quantitative Trading System\src\config\settings.py
+
+主要配置内容：
+
+✅ 路径配置
+• BASE_DIR：项目根目录
+• DATA_DIR：数据存储根目录
+• RAW_DIR：原始数据目录
+• PROCESSED_DIR：处理后的数据目录
+• MARKET_DIR：市场数据目录
+• DAILY_DIR：日线数据
+• MINUTE30_DIR：30分钟线数据
+• ADJ_FACTOR_DIR：复权因子
+• INDICES_DIR：指数数据
+• MONEY_FLOW_DIR：资金流向
+• METADATA_DIR：元数据
+• LOG_DIR：日志目录
+
+✅ 数据源配置
+• MOOTDX_MARKET: 'std'（标准A股）
+
+✅ 数据范围
+• START_DATE: '2005-01-01'（采集起始日期）
+
+✅ 压缩配置
+• PARQUET_COMPRESSION: 'snappy'
+
+✅ 日志配置
+• LOG_LEVEL: 'INFO'
+• LOG_FILE: logs\data_fetcher.log
+
+所有目录会在导入时自动创建。
